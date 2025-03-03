@@ -1,0 +1,23 @@
+/* Estilos personalizados */
+body {
+    background-color: #f8f9fa;
+}
+
+.card {
+    border: none;
+    border-radius: 10px;
+}
+
+.card-header {
+    border-radius: 10px 10px 0 0;
+}
+
+textarea {
+    resize: none;
+}
+
+.alert {
+    border-radius: 5px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
