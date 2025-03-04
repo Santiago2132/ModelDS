@@ -1,7 +1,8 @@
 from flask import Flask, request, jsonify, render_template
-from flask_cors import CORS  
+from flask_cors import CORS
 import subprocess
 import re
+from text_cleaner import clean_text  # Importar la función de limpieza de texto
 
 app = Flask(__name__)
 CORS(app)  # Habilitar CORS para toda la aplicación
@@ -25,7 +26,10 @@ def query_model():
     data = request.json
     query = data.get('query')
 
-    result = subprocess.run(['ollama', 'run', 'deepseek-r1:7b', query], capture_output=True, text=True)
+    # Limpiar la consulta para eliminar palabras en otros idiomas
+    cleaned_query = clean_text(query)
+
+    result = subprocess.run(['ollama', 'run', 'deepseek-1.5b', cleaned_query], capture_output=True, text=True)
 
     # Procesar la respuesta para separar "think" del "response"
     parsed_result = parse_response(result.stdout)
@@ -33,4 +37,5 @@ def query_model():
     return jsonify(parsed_result)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=4000)
+    # Especificar una IP específica para mayor seguridad
+    app.run(host='192.168.1.100', port=4000)
