@@ -1,75 +1,57 @@
-from flask import Flask, request, jsonify, render_template
-from flask_cors import CORS
+from flask import Flask, request, render_template_string
 import subprocess
-import re
-from duckduckgo_search import DDGS
 
 app = Flask(__name__)
-CORS(app, resources={r"/query": {"origins": "*"}})
 
-def parse_response(text):
-    """Extrae la respuesta y el contenido <think> del texto."""
-    think_match = re.search(r"<think>(.*?)</think>", text, re.DOTALL)
-    think_content = think_match.group(1).strip() if think_match else ""
-    response_text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
-    return {"think": think_content, "response": response_text}
+# Plantilla HTML directamente en el código para simplicidad
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Consulta Simple</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
+        textarea { width: 80%; height: 100px; margin: 10px; }
+        button { padding: 10px 20px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        #response { margin-top: 20px; padding: 10px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h1>Envía tu mensaje</h1>
+    <form method="POST">
+        <textarea name="query" placeholder="Escribe tu consulta aquí..."></textarea><br>
+        <button type="submit">Enviar</button>
+    </form>
+    <div id="response">{{ response|safe }}</div>
+</body>
+</html>
+"""
 
-def perform_web_search(query, max_results=5):
-    """Realiza una búsqueda web y devuelve resultados formateados."""
-    try:
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=max_results))
-        search_results = "\n".join(
-            f"{r['title']} - {r['body']} (URL: {r['href']})" for r in results
-        )
-        return search_results if search_results else "No se encontraron resultados en la búsqueda web."
-    except Exception as e:
-        return f"Error en la búsqueda web: {str(e)}"
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/query', methods=['POST'])
-def query_model():
-    """Procesa la consulta y ejecuta el modelo con búsqueda web."""
-    data = request.json
-    query = data.get('query', '').strip()
-
-    if not query:
-        return jsonify({"error": "Consulta vacía"}), 400
-
-    # Realiza una búsqueda web para enriquecer el contexto
-    search_results = perform_web_search(query)
-
-    # Construye el prompt con la consulta y los resultados de búsqueda
-    prompt = (
-        f"Pregunta del usuario, responde todo en español, sé coherente: {query}\n\n"
-        f"Resultados de búsqueda web:\n{search_results}\n\n"
-        "Por favor, utiliza esta información para responder la consulta del usuario. "
-        "Asegúrate de citar cualquier fuente que uses de los resultados de búsqueda en tu respuesta."
-    )
-
-    try:
-        # Ejecuta el modelo deepseek-r1:1.5b con ollama run (sin timeout)
-        result = subprocess.run(
-            ['ollama', 'run', 'deepseek-r1:1.5b', prompt],
-            capture_output=True,
-            text=True
-        )
-
-        # Verifica si hubo errores en la ejecución
-        if result.returncode != 0:
-            return jsonify({"error": "Error al ejecutar el modelo", "details": result.stderr}), 500
-
-        # Parsea la salida del modelo
-        parsed_result = parse_response(result.stdout)
-        return jsonify(parsed_result)
-
-    except FileNotFoundError:
-        return jsonify({"error": "Ollama no está instalado o no está en el PATH"}), 500
-    except Exception as e:
-        return jsonify({"error": f"Error inesperado: {str(e)}"}), 500
+@app.route('/', methods=['GET', 'POST'])
+def home():
+    response = ""
+    if request.method == 'POST':
+        query = request.form.get('query', '').strip()
+        if query:
+            try:
+                # Ejecuta el modelo deepseek-r1:1.5b con ollama
+                result = subprocess.run(
+                    ['ollama', 'run', 'deepseek-r1:1.5b', f"Responde en español: {query}"],
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode == 0:
+                    response = result.stdout
+                else:
+                    response = f"Error al procesar: {result.stderr}"
+            except FileNotFoundError:
+                response = "Error: Ollama no está instalado o no está en el PATH."
+            except Exception as e:
+                response = f"Error inesperado: {str(e)}"
+    
+    return render_template_string(HTML_TEMPLATE, response=response)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=4000, debug=False)
+    app.run(host='0.0.0.0', port=4000, debug=True)
