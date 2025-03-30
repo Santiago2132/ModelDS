@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-import requests
+import subprocess
 import re
 from duckduckgo_search import DDGS
 
@@ -51,30 +51,23 @@ def query_model():
     )
 
     try:
-        # Solicitud a la API de Ollama (sin timeout estricto, espera prolongada)
-        response = requests.post(
-            "http://localhost:11434/api/generate",
-            json={
-                "model": "llama3.2:1b",
-                "prompt": prompt,
-                "stream": False
-            },
-            timeout=60  # Tiempo de espera largo pero razonable
+        # Ejecuta el modelo deepseek-r1:1.5b con ollama run (sin timeout)
+        result = subprocess.run(
+            ['ollama', 'run', 'deepseek-r1:1.5b', prompt],
+            capture_output=True,
+            text=True
         )
 
-        # Verifica si la solicitud fue exitosa
-        if response.status_code != 200:
-            return jsonify({"error": "Error al ejecutar el modelo", "details": response.text}), 500
+        # Verifica si hubo errores en la ejecución
+        if result.returncode != 0:
+            return jsonify({"error": "Error al ejecutar el modelo", "details": result.stderr}), 500
 
-        # Extrae la respuesta del modelo
-        result = response.json().get("response", "No se recibió respuesta del modelo.")
-        parsed_result = parse_response(result)
+        # Parsea la salida del modelo
+        parsed_result = parse_response(result.stdout)
         return jsonify(parsed_result)
 
-    except requests.ConnectionError:
-        return jsonify({"error": "No se pudo conectar con el servidor de Ollama"}), 503
-    except requests.Timeout:
-        return jsonify({"error": "El modelo tardó demasiado en responder"}), 504
+    except FileNotFoundError:
+        return jsonify({"error": "Ollama no está instalado o no está en el PATH"}), 500
     except Exception as e:
         return jsonify({"error": f"Error inesperado: {str(e)}"}), 500
 
