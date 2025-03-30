@@ -31,7 +31,7 @@ def query_model():
     try:
         result = subprocess.run(
             ['ollama', 'run', 'llama3.2:1b', query],
-            capture_output=True, text=True, timeout=10
+            capture_output=True, text=True, timeout=10000000000000000000000000000
         )
 
         if result.returncode != 0:
