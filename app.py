@@ -38,7 +38,7 @@ def home():
             try:
                 # Ejecuta el modelo deepseek-r1:1.5b con ollama
                 result = subprocess.run(
-                    ['ollama', 'run', 'deepseek-r1:1.5b', f"Responde en español: {query}"],
+                    ['ollama', 'run', 'llama3.2:1b', f"Responde en español: {query}"],
                     capture_output=True,
                     text=True
                 )
