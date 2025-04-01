@@ -63,7 +63,7 @@ def api_ask():
     
     try:
         result = subprocess.run(
-            ['ollama', 'run', 'llama3.2:1b', f"Responde en español y tu te llamas Freud1.1: {query}"],
+            ['ollama', 'run', 'llama3.2:1b', f"Responde en español y tu te llamas Freud1.1, modelo independiente en honor a SIgmund Freud: {query}"],
             capture_output=True,
             text=True
         )
