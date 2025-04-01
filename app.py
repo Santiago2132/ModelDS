@@ -53,6 +53,28 @@ def home():
                 response = f"Error inesperado: {str(e)}"
     
     return render_template_string(HTML_TEMPLATE, response=response)
+@app.route('/api/ask', methods=['POST'])
+def api_ask():
+    data = request.json
+    query = data.get("query", "").strip()
+    
+    if not query:
+        return {"error": "Consulta vacía"}, 400
+    
+    try:
+        result = subprocess.run(
+            ['ollama', 'run', 'llama3.2:1b', f"Responde en español y tu te llamas Freud1.1: {query}"],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode == 0:
+            return {"response": result.stdout}
+        else:
+            return {"error": f"Error al procesar: {result.stderr}"}, 500
+    except FileNotFoundError:
+        return {"error": "Ollama no está instalado o no está en el PATH."}, 500
+    except Exception as e:
+        return {"error": str(e)}, 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=4000, debug=True)
