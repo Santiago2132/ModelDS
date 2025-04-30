@@ -1,9 +1,10 @@
-from flask import Flask, request, render_template_string
+from flask import Flask, request, render_template_string, jsonify
+from flask_cors import CORS
 import subprocess
 
 app = Flask(__name__)
+CORS(app)  # Habilita CORS para todas las rutas
 
-# Plantilla HTML corregida y completa
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="es">
@@ -36,45 +37,48 @@ def home():
     if request.method == 'POST':
         query = request.form.get('query', '').strip()
         if query:
-            try:
-                # Ejecuta el modelo con ollama
-                result = subprocess.run(
-                    ['ollama', 'run', 'llama3.2:1b', f"te llamas Freud1.1: {query}"],
-                    capture_output=True,
-                    text=True
-                )
-                if result.returncode == 0:
-                    response = result.stdout
-                else:
-                    response = f"Error al procesar: {result.stderr}"
-            except FileNotFoundError:
-                response = "Error: Ollama no está instalado o no está en el PATH."
-            except Exception as e:
-                response = f"Error inesperado: {str(e)}"
-    
+            response = run_ollama_prompt(query)
     return render_template_string(HTML_TEMPLATE, response=response)
+
 @app.route('/api/ask', methods=['POST'])
 def api_ask():
-    data = request.json
+    data = request.get_json(force=True)
     query = data.get("query", "").strip()
-    
+    print(f"Consulta recibida por API: {query}")  # Log para depuración
+
     if not query:
-        return {"error": "Consulta vacía"}, 400
-    
+        return jsonify({"error": "Consulta vacía"}), 400
+
+    response = run_ollama_prompt(query)
+    if response.startswith("Error"):
+        return jsonify({"error": response}), 500
+    return jsonify({"response": response})
+
+def run_ollama_prompt(query: str) -> str:
     try:
+        prompt = f"""
+Responde en español como un terapeuta emocional profesional y empático.
+Ofrece orientación emocional basada en el mensaje siguiente:
+
+\"{query}\"
+"""
         result = subprocess.run(
-            ['ollama', 'run', 'llama3.2:1b', f"Responde en español y aconsjea emocionalmente: {query}"],
+            ['ollama', 'run', 'llama3.2:1b'],
+            input=prompt,
             capture_output=True,
-            text=True
+            text=True,
+            timeout=90  # Más tiempo de ejecución
         )
         if result.returncode == 0:
-            return {"response": result.stdout}
+            return result.stdout.strip()
         else:
-            return {"error": f"Error al procesar: {result.stderr}"}, 500
+            return f"Error al procesar: {result.stderr.strip()}"
     except FileNotFoundError:
-        return {"error": "Ollama no está instalado o no está en el PATH."}, 500
+        return "Error: Ollama no está instalado o no está en el PATH."
+    except subprocess.TimeoutExpired:
+        return "Error: Tiempo de ejecución excedido al intentar obtener respuesta del modelo."
     except Exception as e:
-        return {"error": str(e)}, 500
+        return f"Error inesperado: {str(e)}"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=4000, debug=True)
