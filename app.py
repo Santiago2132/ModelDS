@@ -57,9 +57,7 @@ def api_ask():
 def run_ollama_prompt(query: str) -> str:
     try:
         prompt = f"""
-Responde en español como un terapeuta emocional profesional y empático.
-Ofrece orientación emocional basada en el mensaje siguiente:
-
+Responde en español y te llamas Freud(para mi) mensaje a responder:
 \"{query}\"
 """
         result = subprocess.run(
