@@ -57,7 +57,7 @@ def api_ask():
 def run_ollama_prompt(query: str) -> str:
     try:
         prompt = f"""
-Responde en español y te llamas Freud(para mi) mensaje a responder:
+Responde en español y te llamas Freuddy, responder maximo 1 parrafo, se amable y cordial, mensaje a responder:
 \"{query}\"
 """
         result = subprocess.run(
